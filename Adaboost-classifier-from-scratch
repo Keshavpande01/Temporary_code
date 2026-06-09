@@ -1,0 +1,118 @@
+# ============================================================
+# AdaBoost Classifier From Scratch
+# ============================================================
+
+import numpy as np
+import pandas as pd
+
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+
+class AdaBoostScratch:
+    def __init__(self, n_estimators=50, random_state=42):
+        self.n_estimators = n_estimators
+        self.random_state = random_state
+        self.models = []
+        self.alphas = []
+
+    def fit(self, X, y):
+
+        np.random.seed(self.random_state)
+
+        # Convert labels from 0/1 to -1/+1
+        y_transformed = np.where(y == 0, -1, 1)
+
+        n_samples = X.shape[0]
+
+        # Initially all samples have equal weight
+        sample_weights = np.ones(n_samples) / n_samples
+
+        self.models = []
+        self.alphas = []
+
+        for i in range(self.n_estimators):
+
+            # Weak learner: decision stump
+            stump = DecisionTreeClassifier(
+                max_depth=1,
+                random_state=self.random_state + i
+            )
+
+            # Train using sample weights
+            stump.fit(X, y_transformed, sample_weight=sample_weights)
+
+            # Predict
+            y_pred = stump.predict(X)
+
+            # Misclassified samples
+            incorrect = y_pred != y_transformed
+
+            # Weighted error
+            error = np.sum(sample_weights[incorrect])
+
+            # Avoid division by zero
+            error = np.clip(error, 1e-10, 1 - 1e-10)
+
+            # Model weight
+            alpha = 0.5 * np.log((1 - error) / error)
+
+            # Update sample weights
+            sample_weights = sample_weights * np.exp(
+                -alpha * y_transformed * y_pred
+            )
+
+            # Normalize weights
+            sample_weights = sample_weights / np.sum(sample_weights)
+
+            # Save model and alpha
+            self.models.append(stump)
+            self.alphas.append(alpha)
+
+    def predict(self, X):
+
+        final_prediction = np.zeros(X.shape[0])
+
+        for model, alpha in zip(self.models, self.alphas):
+            pred = model.predict(X)
+            final_prediction += alpha * pred
+
+        # Convert back from -1/+1 to 0/1
+        final_prediction = np.sign(final_prediction)
+
+        return np.where(final_prediction == -1, 0, 1)
+
+
+# ============================================================
+# Test AdaBoost From Scratch
+# ============================================================
+
+data = load_breast_cancer()
+
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.25,
+    random_state=42,
+    stratify=y
+)
+
+boosting_model = AdaBoostScratch(
+    n_estimators=50,
+    random_state=42
+)
+
+boosting_model.fit(X_train, y_train)
+
+y_pred = boosting_model.predict(X_test)
+
+print("AdaBoost From Scratch Accuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
