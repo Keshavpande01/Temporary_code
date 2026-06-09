@@ -1,0 +1,232 @@
+# ============================================================
+# 1_EDA.py
+# Standard EDA for Any CSV Dataset
+# Change only file_name
+# ============================================================
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+# ============================================================
+# 1. Load Dataset
+# ============================================================
+
+file_name = "your_dataset.csv"   # CHANGE THIS
+
+df = pd.read_csv(file_name)
+
+
+# ============================================================
+# 2. Remove Unnecessary Index Columns
+# ============================================================
+
+for col in ["Unnamed: 0", "ID", "id", "index"]:
+    if col in df.columns:
+        df = df.drop(columns=[col])
+
+
+# ============================================================
+# 3. Basic View
+# ============================================================
+
+print("\n" + "=" * 70)
+print("FIRST 5 ROWS")
+print("=" * 70)
+print(df.head())
+
+print("\n" + "=" * 70)
+print("LAST 5 ROWS")
+print("=" * 70)
+print(df.tail())
+
+
+# ============================================================
+# 4. Shape, Columns, Data Types
+# ============================================================
+
+print("\n" + "=" * 70)
+print("SHAPE")
+print("=" * 70)
+print(df.shape)
+
+print("\n" + "=" * 70)
+print("COLUMN NAMES")
+print("=" * 70)
+print(df.columns)
+
+print("\n" + "=" * 70)
+print("DATA TYPES")
+print("=" * 70)
+print(df.dtypes)
+
+print("\n" + "=" * 70)
+print("INFO")
+print("=" * 70)
+print(df.info())
+
+
+# ============================================================
+# 5. Missing Values
+# ============================================================
+
+print("\n" + "=" * 70)
+print("MISSING VALUES")
+print("=" * 70)
+print(df.isnull().sum())
+
+print("\nMissing value percentage:")
+print((df.isnull().sum() / len(df)) * 100)
+
+
+# ============================================================
+# 6. Duplicate Rows
+# ============================================================
+
+print("\n" + "=" * 70)
+print("DUPLICATE ROWS")
+print("=" * 70)
+print(df.duplicated().sum())
+
+
+# ============================================================
+# 7. Numeric and Categorical Columns
+# ============================================================
+
+numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
+categorical_cols = df.select_dtypes(include=["object", "category"]).columns
+
+print("\n" + "=" * 70)
+print("NUMERIC COLUMNS")
+print("=" * 70)
+print(list(numeric_cols))
+
+print("\n" + "=" * 70)
+print("CATEGORICAL COLUMNS")
+print("=" * 70)
+print(list(categorical_cols))
+
+
+# ============================================================
+# 8. Summary Statistics
+# ============================================================
+
+print("\n" + "=" * 70)
+print("NUMERIC SUMMARY")
+print("=" * 70)
+
+if len(numeric_cols) > 0:
+    print(df[numeric_cols].describe())
+else:
+    print("No numeric columns found.")
+
+print("\n" + "=" * 70)
+print("CATEGORICAL SUMMARY")
+print("=" * 70)
+
+if len(categorical_cols) > 0:
+    print(df[categorical_cols].describe())
+else:
+    print("No categorical columns found.")
+
+
+# ============================================================
+# 9. Value Counts for Categorical Columns
+# ============================================================
+
+if len(categorical_cols) > 0:
+    print("\n" + "=" * 70)
+    print("CATEGORICAL VALUE COUNTS")
+    print("=" * 70)
+
+    for col in categorical_cols:
+        print("\nColumn:", col)
+        print(df[col].value_counts())
+
+
+# ============================================================
+# 10. Value Counts for Low-Cardinality Numeric Columns
+# ============================================================
+
+print("\n" + "=" * 70)
+print("LOW-CARDINALITY NUMERIC VALUE COUNTS")
+print("=" * 70)
+
+for col in numeric_cols:
+    if df[col].nunique() <= 10:
+        print("\nColumn:", col)
+        print(df[col].value_counts())
+
+
+# ============================================================
+# 11. Histograms
+# ============================================================
+
+if len(numeric_cols) > 0:
+    df[numeric_cols].hist(figsize=(15, 10), bins=20)
+    plt.suptitle("Histograms of Numeric Columns")
+    plt.tight_layout()
+    plt.show()
+
+
+# ============================================================
+# 12. Boxplots
+# ============================================================
+
+for col in numeric_cols:
+    plt.figure(figsize=(6, 4))
+    plt.boxplot(df[col].dropna())
+    plt.title("Boxplot of " + col)
+    plt.ylabel(col)
+    plt.grid(True)
+    plt.show()
+
+
+# ============================================================
+# 13. Correlation Matrix and Heatmap
+# ============================================================
+
+if len(numeric_cols) > 1:
+    corr = df[numeric_cols].corr()
+
+    print("\n" + "=" * 70)
+    print("CORRELATION MATRIX")
+    print("=" * 70)
+    print(corr)
+
+    plt.figure(figsize=(10, 8))
+    plt.imshow(corr, aspect="auto")
+    plt.colorbar()
+
+    plt.xticks(
+        range(len(corr.columns)),
+        corr.columns,
+        rotation=90
+    )
+
+    plt.yticks(
+        range(len(corr.columns)),
+        corr.columns
+    )
+
+    plt.title("Correlation Heatmap")
+    plt.tight_layout()
+    plt.show()
+
+
+# ============================================================
+# 14. Final EDA Summary
+# ============================================================
+
+print("\n" + "=" * 70)
+print("EDA SUMMARY")
+print("=" * 70)
+
+print("Rows:", df.shape[0])
+print("Columns:", df.shape[1])
+print("Numeric columns:", len(numeric_cols))
+print("Categorical columns:", len(categorical_cols))
+print("Total missing values:", df.isnull().sum().sum())
+print("Duplicate rows:", df.duplicated().sum())
+
+print("\nEDA completed successfully.")
