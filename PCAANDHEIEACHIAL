@@ -1,0 +1,211 @@
+# ============================================================
+# PCA + Hierarchical Clustering
+# Works for any CSV dataset
+# ============================================================
+
+import warnings
+warnings.filterwarnings("ignore")
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from scipy.cluster.hierarchy import linkage, dendrogram, cut_tree
+
+
+# ------------------------------------------------------------
+# 1. Load dataset
+# ------------------------------------------------------------
+
+file_name = "College.csv"
+target_col = "Private"     # use None if no target column
+
+df = pd.read_csv(file_name)
+
+for col in ["Unnamed: 0", "ID", "id", "index"]:
+    if col in df.columns:
+        df = df.drop(columns=[col])
+
+print("\nFirst 5 rows:")
+print(df.head())
+
+print("\nShape:")
+print(df.shape)
+
+print("\nColumns:")
+print(df.columns)
+
+
+# ------------------------------------------------------------
+# 2. Remove target column for unsupervised learning
+# ------------------------------------------------------------
+
+if target_col is not None and target_col in df.columns:
+    true_labels = df[target_col]
+    X = df.drop(columns=[target_col])
+else:
+    true_labels = None
+    X = df.copy()
+
+
+# ------------------------------------------------------------
+# 3. Handle missing values and encode categorical columns
+# ------------------------------------------------------------
+
+X = X.copy()
+
+num_cols = X.select_dtypes(include=["int64", "float64"]).columns
+cat_cols = X.select_dtypes(include=["object", "category"]).columns
+
+for col in num_cols:
+    X[col] = X[col].fillna(X[col].median())
+
+for col in cat_cols:
+    X[col] = X[col].fillna(X[col].mode()[0])
+
+X = pd.get_dummies(X, drop_first=True)
+
+print("\nFeature shape after preprocessing:")
+print(X.shape)
+
+
+# ------------------------------------------------------------
+# 4. Standardize data
+# ------------------------------------------------------------
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+
+# ------------------------------------------------------------
+# 5. PCA
+# ------------------------------------------------------------
+
+pca = PCA()
+X_pca = pca.fit_transform(X_scaled)
+
+pve = pca.explained_variance_ratio_
+cum_pve = np.cumsum(pve)
+
+print("\nExplained variance ratio:")
+print(pve)
+
+print("\nCumulative explained variance:")
+print(cum_pve)
+
+
+# ------------------------------------------------------------
+# 6. PCA variance plot
+# ------------------------------------------------------------
+
+plt.figure(figsize=(7, 5))
+plt.plot(range(1, len(cum_pve) + 1), cum_pve, marker="o")
+plt.xlabel("Number of Principal Components")
+plt.ylabel("Cumulative Explained Variance")
+plt.title("PCA Cumulative Explained Variance")
+plt.grid(True)
+plt.show()
+
+
+# ------------------------------------------------------------
+# 7. PCA scatter plot
+# ------------------------------------------------------------
+
+plt.figure(figsize=(7, 5))
+
+if true_labels is not None:
+    codes = pd.Categorical(true_labels).codes
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], c=codes, alpha=0.8)
+else:
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.8)
+
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.title("PCA Plot")
+plt.grid(True)
+plt.show()
+
+
+# ------------------------------------------------------------
+# 8. Hierarchical clustering
+# ------------------------------------------------------------
+
+hc_complete = linkage(
+    X_scaled,
+    method="complete",
+    metric="euclidean"
+)
+
+plt.figure(figsize=(14, 6))
+dendrogram(hc_complete)
+plt.title("Hierarchical Clustering Dendrogram")
+plt.xlabel("Observations")
+plt.ylabel("Distance")
+plt.tight_layout()
+plt.show()
+
+
+# ------------------------------------------------------------
+# 9. Cut tree into clusters
+# ------------------------------------------------------------
+
+k = 2   # change number of clusters if needed
+
+cluster_labels = cut_tree(
+    hc_complete,
+    n_clusters=k
+).reshape(-1)
+
+print("\nCluster labels:")
+print(cluster_labels)
+
+print("\nCluster counts:")
+print(pd.Series(cluster_labels).value_counts().sort_index())
+
+
+# ------------------------------------------------------------
+# 10. PCA plot colored by hierarchical clusters
+# ------------------------------------------------------------
+
+plt.figure(figsize=(7, 5))
+plt.scatter(
+    X_pca[:, 0],
+    X_pca[:, 1],
+    c=cluster_labels,
+    alpha=0.8
+)
+
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.title("Hierarchical Clusters on PCA Plot")
+plt.grid(True)
+plt.show()
+
+
+# ------------------------------------------------------------
+# 11. Compare with true labels if available
+# ------------------------------------------------------------
+
+if true_labels is not None:
+    print("\nCrosstab between true labels and clusters:")
+    print(pd.crosstab(true_labels, cluster_labels))
+
+
+
+# College.csv     target_col = "Private"
+
+#Weekly.csv      target_col = "Direction"
+
+#Smarket.csv     target_col = "Direction"
+
+#OJ.csv          target_col = "Purchase"
+
+#Caravan.csv     target_col = "Purchase"
+
+#Heart.csv       target_col = "AHD"
+
+#Boston.csv      target_col = "medv"
+
+#Auto.csv        target_col = "mpg"
