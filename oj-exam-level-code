@@ -1,0 +1,181 @@
+# ============================================================
+# OJ Dataset - SVM Classification with Tuning
+# ============================================================
+
+import pandas as pd
+
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.svm import LinearSVC, SVC
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# ------------------------------------------------------------
+# 1. Load data
+# ------------------------------------------------------------
+
+# Option 1: If ISLP is installed
+try:
+    from ISLP import load_data
+    OJ = load_data("OJ")
+    print("Loaded OJ from ISLP")
+
+# Option 2: If local CSV is available
+except ModuleNotFoundError:
+    OJ = pd.read_csv("OJ.csv")
+    print("Loaded OJ from local CSV")
+
+print(OJ.head())
+print(OJ.shape)
+print(OJ["Purchase"].value_counts())
+
+# ------------------------------------------------------------
+# 2. X and y
+# ------------------------------------------------------------
+
+X = OJ.drop(columns=["Purchase"])
+y = OJ["Purchase"]
+
+# Convert categorical predictors into dummy variables
+X = pd.get_dummies(X, drop_first=True)
+
+# ------------------------------------------------------------
+# 3. Train-test split
+# 800 training observations, remaining testing observations
+# ------------------------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    train_size=800,
+    random_state=42,
+    stratify=y
+)
+
+# ============================================================
+# 4. Linear SVM with tuning
+# ============================================================
+
+linear_pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("svc", LinearSVC(max_iter=10000, random_state=42))
+])
+
+linear_params = {
+    "svc__C": [0.01, 0.1, 1, 10, 100]
+}
+
+linear_grid = GridSearchCV(
+    linear_pipe,
+    linear_params,
+    cv=5,
+    scoring="accuracy"
+)
+
+linear_grid.fit(X_train, y_train)
+
+best_linear = linear_grid.best_estimator_
+
+linear_train_pred = best_linear.predict(X_train)
+linear_test_pred = best_linear.predict(X_test)
+
+linear_train_acc = accuracy_score(y_train, linear_train_pred)
+linear_test_acc = accuracy_score(y_test, linear_test_pred)
+
+print("\n" + "=" * 60)
+print("Best Linear SVM")
+print("=" * 60)
+print("Best C:", linear_grid.best_params_)
+print("Best CV Accuracy:", linear_grid.best_score_)
+print("Training Accuracy:", linear_train_acc)
+print("Testing Accuracy :", linear_test_acc)
+print("Training Error   :", 1 - linear_train_acc)
+print("Testing Error    :", 1 - linear_test_acc)
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, linear_test_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, linear_test_pred))
+
+# ============================================================
+# 5. Radial Kernel SVM with tuning
+# ============================================================
+
+radial_pipe = Pipeline([
+    ("scaler", StandardScaler()),
+    ("svm", SVC(kernel="rbf"))
+])
+
+radial_params = {
+    "svm__C": [0.1, 1, 10, 100],
+    "svm__gamma": ["scale", 0.01, 0.1, 1]
+}
+
+radial_grid = GridSearchCV(
+    radial_pipe,
+    radial_params,
+    cv=5,
+    scoring="accuracy"
+)
+
+radial_grid.fit(X_train, y_train)
+
+best_radial = radial_grid.best_estimator_
+
+radial_train_pred = best_radial.predict(X_train)
+radial_test_pred = best_radial.predict(X_test)
+
+radial_train_acc = accuracy_score(y_train, radial_train_pred)
+radial_test_acc = accuracy_score(y_test, radial_test_pred)
+
+print("\n" + "=" * 60)
+print("Best Radial Kernel SVM")
+print("=" * 60)
+print("Best Parameters:", radial_grid.best_params_)
+print("Best CV Accuracy:", radial_grid.best_score_)
+print("Training Accuracy:", radial_train_acc)
+print("Testing Accuracy :", radial_test_acc)
+print("Training Error   :", 1 - radial_train_acc)
+print("Testing Error    :", 1 - radial_test_acc)
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, radial_test_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, radial_test_pred))
+
+# ============================================================
+# 6. Final comparison
+# ============================================================
+
+results = pd.DataFrame({
+    "Model": [
+        "Best Linear SVM",
+        "Best Radial SVM"
+    ],
+    "Train Accuracy": [
+        linear_train_acc,
+        radial_train_acc
+    ],
+    "Test Accuracy": [
+        linear_test_acc,
+        radial_test_acc
+    ],
+    "Train Error": [
+        1 - linear_train_acc,
+        1 - radial_train_acc
+    ],
+    "Test Error": [
+        1 - linear_test_acc,
+        1 - radial_test_acc
+    ]
+})
+
+print("\n" + "=" * 60)
+print("Final Comparison")
+print("=" * 60)
+print(results)
+
+print("\nBest model based on test accuracy:")
+print(results.loc[results["Test Accuracy"].idxmax()])
