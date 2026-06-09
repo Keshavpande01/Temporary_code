@@ -1,0 +1,102 @@
+# ============================================================
+# Bagging Classifier From Scratch
+# ============================================================
+
+import numpy as np
+import pandas as pd
+
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+
+class BaggingClassifierScratch:
+    def __init__(self, n_estimators=10, max_depth=None, random_state=42):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.random_state = random_state
+        self.models = []
+
+    def fit(self, X, y):
+        np.random.seed(self.random_state)
+
+        self.models = []
+        n_samples = X.shape[0]
+
+        for i in range(self.n_estimators):
+
+            # Bootstrap sample indices
+            bootstrap_indices = np.random.choice(
+                np.arange(n_samples),
+                size=n_samples,
+                replace=True
+            )
+
+            X_bootstrap = X[bootstrap_indices]
+            y_bootstrap = y[bootstrap_indices]
+
+            # Train decision tree
+            tree = DecisionTreeClassifier(
+                max_depth=self.max_depth,
+                random_state=self.random_state + i
+            )
+
+            tree.fit(X_bootstrap, y_bootstrap)
+
+            self.models.append(tree)
+
+    def predict(self, X):
+
+        # Get prediction from each tree
+        all_predictions = []
+
+        for model in self.models:
+            pred = model.predict(X)
+            all_predictions.append(pred)
+
+        all_predictions = np.array(all_predictions)
+
+        # Majority vote
+        final_predictions = []
+
+        for i in range(X.shape[0]):
+            votes = all_predictions[:, i]
+            majority_vote = np.bincount(votes).argmax()
+            final_predictions.append(majority_vote)
+
+        return np.array(final_predictions)
+
+
+# ============================================================
+# Test Bagging From Scratch
+# ============================================================
+
+data = load_breast_cancer()
+
+X = data.data
+y = data.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.25,
+    random_state=42,
+    stratify=y
+)
+
+bagging_model = BaggingClassifierScratch(
+    n_estimators=50,
+    max_depth=None,
+    random_state=42
+)
+
+bagging_model.fit(X_train, y_train)
+
+y_pred = bagging_model.predict(X_test)
+
+print("Bagging From Scratch Accuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
