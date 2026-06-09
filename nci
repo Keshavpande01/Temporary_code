@@ -1,0 +1,141 @@
+# ============================================================
+# NCI60 Dataset - PCA + Variance Explained + Hierarchical Clustering
+# ============================================================
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from ISLP import load_data
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from scipy.cluster.hierarchy import linkage, dendrogram
+
+# ------------------------------------------------------------
+# 1. Load data
+# ------------------------------------------------------------
+
+NCI60 = load_data("NCI60")
+
+X = pd.DataFrame(NCI60["data"])
+labels = pd.Series(NCI60["labels"].iloc[:, 0])
+
+print("Data shape:", X.shape)
+print("Labels shape:", labels.shape)
+print(labels.value_counts())
+
+# ------------------------------------------------------------
+# 2. Standardize data
+# ------------------------------------------------------------
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# ------------------------------------------------------------
+# 3. PCA
+# ------------------------------------------------------------
+
+pca = PCA()
+X_pca = pca.fit_transform(X_scaled)
+
+pve = pca.explained_variance_ratio_ * 100
+cum_pve = np.cumsum(pve)
+
+print("\nPercent variance explained by first 10 PCs:")
+for i in range(10):
+    print(f"PC{i+1}: {pve[i]:.2f}%")
+
+print("\nCumulative variance explained by first 10 PCs:")
+for i in range(10):
+    print(f"PC1 to PC{i+1}: {cum_pve[i]:.2f}%")
+
+# ------------------------------------------------------------
+# 4. PCA Plot: PC1 vs PC2
+# ------------------------------------------------------------
+
+plt.figure(figsize=(9, 6))
+
+for lab in labels.unique():
+    idx = labels == lab
+    plt.scatter(
+        X_pca[idx, 0],
+        X_pca[idx, 1],
+        label=lab,
+        alpha=0.8
+    )
+
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.title("NCI60 PCA Plot: PC1 vs PC2")
+plt.legend(fontsize=7, bbox_to_anchor=(1.05, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
+
+# ------------------------------------------------------------
+# 5. PCA Plot: PC1 vs PC3
+# ------------------------------------------------------------
+
+plt.figure(figsize=(9, 6))
+
+for lab in labels.unique():
+    idx = labels == lab
+    plt.scatter(
+        X_pca[idx, 0],
+        X_pca[idx, 2],
+        label=lab,
+        alpha=0.8
+    )
+
+plt.xlabel("PC1")
+plt.ylabel("PC3")
+plt.title("NCI60 PCA Plot: PC1 vs PC3")
+plt.legend(fontsize=7, bbox_to_anchor=(1.05, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
+
+# ------------------------------------------------------------
+# 6. PVE Plot
+# ------------------------------------------------------------
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, len(pve) + 1), pve, marker="o")
+plt.xlabel("Principal Component")
+plt.ylabel("Percent Variance Explained")
+plt.title("PVE Plot")
+plt.show()
+
+# ------------------------------------------------------------
+# 7. Cumulative PVE Plot
+# ------------------------------------------------------------
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, len(cum_pve) + 1), cum_pve, marker="o")
+plt.xlabel("Number of Principal Components")
+plt.ylabel("Cumulative Percent Variance Explained")
+plt.title("Cumulative PVE Plot")
+plt.show()
+
+# ------------------------------------------------------------
+# 8. Hierarchical clustering using first 5 PCs
+# ------------------------------------------------------------
+
+X_pca_5 = X_pca[:, :5]
+
+hc = linkage(
+    X_pca_5,
+    method="complete",
+    metric="euclidean"
+)
+
+plt.figure(figsize=(14, 7))
+dendrogram(
+    hc,
+    labels=labels.astype(str).values,
+    leaf_rotation=90
+)
+
+plt.title("Hierarchical Clustering on First 5 PCs")
+plt.xlabel("Cancer Cell Lines")
+plt.ylabel("Euclidean Distance")
+plt.tight_layout()
+plt.show()
